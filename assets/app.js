@@ -1,5 +1,7 @@
 (() => {
-  const { REPO, BRANCH, skills } = window.TENSOR;
+  const { REPO, BRANCH, categories } = window.TENSOR;
+  const skills = categories.flatMap((c) => window.TENSOR.skills.filter((s) => s.cat === c))
+    .concat(window.TENSOR.skills.filter((s) => !categories.includes(s.cat)));
   const app = document.getElementById("app");
   const RAW = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
   const total = String(skills.length).padStart(2, "0");
@@ -116,27 +118,34 @@
   }
 
   function home() {
-    const cards = skills.map((s, i) => `
+    const card = (s) => {
+      const i = skills.indexOf(s);
+      return `
       <a class="card" href="#/skill/${s.slug}">
         <div class="card-meta"><span>${pad(i + 1)}/${total}</span><span class="cat">${esc(s.cat)}</span><span>${esc(s.read)}</span></div>
         <div class="card-title"><span class="icon">${esc(s.icon)}</span><h3>/${esc(s.slug)}</h3></div>
         <p class="tag-line">${esc(s.tagline)}</p>
         <div class="chips">${s.tags.slice(0, 4).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
-      </a>`).join("");
+      </a>`;
+    };
+    const groups = [...new Set(skills.map((s) => s.cat))];
+    const cards = groups.map((g, gi) => `
+      <div class="group-h"><span class="cm"># ── ${String(gi + 1).padStart(2, "0")} · ${esc(g)}</span><span class="dim">${skills.filter((s) => s.cat === g).length} skills</span></div>
+      <div class="grid">${skills.filter((s) => s.cat === g).map(card).join("")}</div>`).join("");
 
     app.innerHTML = `
       <section class="fade-in">
         ${cell(1, `<div class="code"><span class="kw">import</span> tensor <span class="kw">as</span> tf <span class="cm"># not that one 😉</span></div>`)}
         ${cell(1, `
           <h1 class="hero-title">TENSOR</h1>
-          <p class="hero-sub"><b>Claude Code skills for CS/IT placements.</b> Coaching for DSA patterns, a GitHub glow-up, hireable projects, a defence round on your own code and core-subject vivas. They run inside your terminal, on <b>your</b> code.</p>
+          <p class="hero-sub"><b>Claude Code skills for the whole CS/IT placement journey.</b> They cover prep (DSA patterns, core vivas), getting shortlisted (resume, JD match, GitHub, referrals), interview rounds (OA, DSA, system design, HR, project defence) and the offer (CTC → in-hand). They run inside your terminal, on <b>your</b> code.</p>
           <div class="shape">tensor.shape → <b>(${skills.length} skills, ∞ practice, 0 fluff)</b></div>
           <div class="cta-row">
             <a class="btn primary" href="#/install">▶ Run all cells — install</a>
             <a class="btn" href="#/skill/${skills[0].slug}">/${skills[0].slug} →</a>
           </div>`, "out")}
         ${cell(2, `<div class="code">tf.<span class="fn">list_skills</span>(<span class="str">"placements"</span>)</div>`)}
-        ${cell(2, `<div class="grid">${cards}</div>`, "out")}
+        ${cell(2, cards, "out")}
         ${cell(3, `<div class="code"><span class="cm"># how it works</span><br>
 <span class="num">1</span>. install a skill into <span class="str">~/.claude/skills/</span><br>
 <span class="num">2</span>. open Claude Code inside your project folder<br>
