@@ -121,7 +121,7 @@
     const card = (s) => {
       const i = skills.indexOf(s);
       return `
-      <a class="card" href="#/skill/${s.slug}">
+      <a class="card" href="#${s.slug}">
         <div class="card-meta"><span>${pad(i + 1)}/${total}</span><span class="cat">${esc(s.cat)}</span><span>${esc(s.read)}</span></div>
         <div class="card-title"><span class="icon">${esc(s.icon)}</span><h3>/${esc(s.slug)}</h3></div>
         <p class="tag-line">${esc(s.tagline)}</p>
@@ -141,16 +141,32 @@
           <p class="hero-sub"><b>Claude Code skills for the whole CS/IT placement journey.</b> They cover prep (DSA patterns, core vivas), getting shortlisted (resume, JD match, GitHub, referrals), interview rounds (OA, DSA, system design, HR, project defence) and the offer (CTC → in-hand). They run inside your terminal, on <b>your</b> code.</p>
           <div class="shape">tensor.shape → <b>(${skills.length} skills, ∞ practice, 0 fluff)</b></div>
           <div class="cta-row">
-            <a class="btn primary" href="#/install">▶ Run all cells — install</a>
-            <a class="btn" href="#/skill/${skills[0].slug}">/${skills[0].slug} →</a>
+            <a class="btn primary" href="#install">▶ Run all cells — install</a>
+            <a class="btn" href="#${skills[0].slug}">/${skills[0].slug} →</a>
           </div>`, "out")}
-        ${cell(2, `<div class="code">tf.<span class="fn">list_skills</span>(<span class="str">"placements"</span>)</div>`)}
-        ${cell(2, cards, "out")}
+        ${cell(2, `<label class="code search"><span>tf.<span class="fn">list_skills</span>(<span class="str">"</span></span><input id="q" type="search" placeholder="placements" autocomplete="off" aria-label="Search skills" /><span class="str">")</span></label>`)}
+        ${cell(2, `<div id="cards">${cards}</div><p id="none" class="dim" hidden style="font-family:var(--mono)">[] — no skill matches. Try "resume", "dsa", "ctc"…</p>`, "out")}
         ${cell(3, `<div class="code"><span class="cm"># how it works</span><br>
 <span class="num">1</span>. install a skill into <span class="str">~/.claude/skills/</span><br>
 <span class="num">2</span>. open Claude Code inside your project folder<br>
 <span class="num">3</span>. type <span class="fn">/pattern-coach</span>, <span class="fn">/core-viva os</span>, <span class="fn">/defend-my-project</span> …</div>`)}
       </section>`;
+    const q = document.getElementById("q");
+    q.addEventListener("input", () => {
+      const v = q.value.trim().toLowerCase();
+      let shown = 0;
+      document.querySelectorAll("#cards .card").forEach((c) => {
+        const s = skills.find((x) => c.getAttribute("href") === "#" + x.slug);
+        const hit = !v || [s.slug, s.cat, s.tagline, s.blurb, ...s.tags].join(" ").toLowerCase().includes(v);
+        c.hidden = !hit; if (hit) shown++;
+      });
+      document.querySelectorAll("#cards .group-h").forEach((g) => {
+        const grid = g.nextElementSibling;
+        const any = [...grid.children].some((c) => !c.hidden);
+        g.hidden = !any; grid.hidden = !any;
+      });
+      document.getElementById("none").hidden = shown > 0;
+    });
   }
 
   function demoHTML(s) {
@@ -206,7 +222,7 @@
 
     app.innerHTML = `
       <section class="fade-in">
-        <div class="crumbs"><a href="#/">skills</a> / ${esc(s.cat)} / ${pad(idx + 1)}/${total} · ${esc(s.read)}</div>
+        <div class="crumbs"><a href="#">skills</a> / ${esc(s.cat)} / ${pad(idx + 1)}/${total} · ${esc(s.read)}</div>
         <div class="detail-title"><span class="icon">${esc(s.icon)}</span><h1>/${esc(s.slug)}</h1></div>
         <p class="lead">${esc(s.tagline)}</p>
         <p class="blurb">${esc(s.blurb)}</p>
@@ -219,12 +235,17 @@
         ${copyBox(installOne(s.slug))}
         <p class="dim" style="font-family:var(--mono);font-size:12.5px">then open Claude Code in any project and type <span style="color:var(--yellow)">/${esc(s.slug)}</span></p>
 
+        <h2 class="section-h">No Claude Code? Use it in any chat</h2>
+        <p class="blurb">Plan khatam thai gayo? Aa button aakhi skill copy kare che. Pachhi tene free claude.ai (ke bija koi AI chat) ma paste karo. Skill e chat ma instructions tarike kaam karshe.</p>
+        <button class="btn primary" id="copy-prompt" disabled>⧉ Copy as prompt</button>
+        <span id="copy-msg" class="dim" style="font-family:var(--mono);font-size:12.5px;margin-left:10px"></span>
+
         <h2 class="section-h">SKILL.md</h2>
         <div id="skill-src"><div class="md"><p class="dim">loading SKILL.md…</p></div></div>
 
         <div class="pager">
-          <a href="#/skill/${prev.slug}"><span class="dir">← previous</span>/${esc(prev.slug)}</a>
-          <a class="next" href="#/skill/${next.slug}"><span class="dir">next →</span>/${esc(next.slug)}</a>
+          <a href="#${prev.slug}"><span class="dir">← previous</span>/${esc(prev.slug)}</a>
+          <a class="next" href="#${next.slug}"><span class="dir">next →</span>/${esc(next.slug)}</a>
         </div>
       </section>`;
     window.scrollTo(0, 0);
@@ -238,6 +259,18 @@
         : "";
       const target = document.getElementById("skill-src");
       if (target) target.innerHTML = `<div class="md">${fmHTML}${renderMarkdown(body)}</div>`;
+      const btn = document.getElementById("copy-prompt");
+      if (btn) {
+        btn.disabled = false;
+        const prompt = `Follow the instructions below for this whole conversation. You are running the "/${slug}" skill.\n` +
+          `If an instruction needs file access, a shell or web search you don't have, ask me to paste the content instead.\n\n` +
+          body.trim() + `\n\n---\nStart now: briefly ask me what you need to begin.`;
+        btn.onclick = async () => {
+          const msg = document.getElementById("copy-msg");
+          try { await navigator.clipboard.writeText(prompt); msg.textContent = "copied ✓ — paste it into a new chat"; }
+          catch (_) { msg.textContent = "copy blocked — select the SKILL.md text below and copy it manually"; }
+        };
+      }
     } catch (_) {
       const target = document.getElementById("skill-src");
       if (target) target.innerHTML = `<div class="md"><p>Couldn't load the file here. <a href="https://github.com/${REPO}/blob/${BRANCH}/skills/${slug}/SKILL.md" target="_blank" rel="noopener">View SKILL.md on GitHub ↗</a></p></div>`;
@@ -247,7 +280,7 @@
   function install() {
     app.innerHTML = `
       <section class="fade-in">
-        <div class="crumbs"><a href="#/">skills</a> / install</div>
+        <div class="crumbs"><a href="#">skills</a> / install</div>
         <div class="detail-title"><span class="icon">▶</span><h1>Run all cells</h1></div>
         <p class="lead">Every skill is one <code style="font-family:var(--mono);color:var(--yellow)">SKILL.md</code> file. Claude Code loads the skills from <code style="font-family:var(--mono);color:var(--yellow)">~/.claude/skills/</code>.</p>
 
@@ -255,7 +288,7 @@
         ${copyBox(installAll())}
 
         <h2 class="section-h">Just one</h2>
-        ${skills.map((s) => `<p style="font-family:var(--mono);font-size:13px;margin:14px 0 6px"><a href="#/skill/${s.slug}">/${esc(s.slug)}</a> <span class="dim">— ${esc(s.tagline)}</span></p>${copyBox(installOne(s.slug))}`).join("")}
+        ${skills.map((s) => `<p style="font-family:var(--mono);font-size:13px;margin:14px 0 6px"><a href="#${s.slug}">/${esc(s.slug)}</a> <span class="dim">— ${esc(s.tagline)}</span></p>${copyBox(installOne(s.slug))}`).join("")}
 
         <h2 class="section-h">Project-only install</h2>
         <p class="blurb">Want a skill to apply only inside one repo? Copy its folder into <code style="font-family:var(--mono);color:var(--yellow)">.claude/skills/</code> in that project and commit it. Your whole team gets it.</p>
@@ -265,15 +298,15 @@
   }
 
   function notFound() {
-    app.innerHTML = `<section class="fade-in">${cell("*", `<div class="code" style="border-left-color:var(--red)"><span style="color:var(--red)">KeyError</span>: page not found — <a href="#/">back to skills</a></div>`, "out")}</section>`;
+    app.innerHTML = `<section class="fade-in">${cell("*", `<div class="code" style="border-left-color:var(--red)"><span style="color:var(--red)">KeyError</span>: page not found — <a href="#">back to skills</a></div>`, "out")}</section>`;
   }
 
   function route() {
-    const h = location.hash.replace(/^#/, "") || "/";
-    const m = h.match(/^\/skill\/([\w-]+)/);
-    if (m) return detail(m[1]);
-    if (h.startsWith("/install")) return install();
-    if (h === "/" || h === "") return home();
+    // plain #name routes (work on Vercel and inside claude.ai artifacts); old #/skill/x links still work
+    const h = decodeURIComponent(location.hash.replace(/^#\/?(skill\/)?/, ""));
+    if (!h) return home();
+    if (h === "install") return install();
+    if (skills.some((s) => s.slug === h)) return detail(h);
     notFound();
   }
   window.addEventListener("hashchange", route);
