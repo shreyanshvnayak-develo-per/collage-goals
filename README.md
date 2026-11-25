@@ -2,7 +2,7 @@
 
 ```python
 import tensor as tf   # not that one 😉
-tf.shape  # (5 skills, ∞ practice, 0 fluff)
+tf.shape  # (14 skills, ∞ practice, 0 fluff)
 ```
 
 TENSOR is a set of 14 [Claude Code](https://claude.com/claude-code) skills covering the whole CS/IT placement journey for Indian students. They run in your terminal, on **your** code.
